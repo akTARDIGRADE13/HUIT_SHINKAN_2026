@@ -1,9 +1,13 @@
 import type { Board } from "../utils/puzzle";
+import { getManhattanDistance, getMaxManhattan } from "../utils/manhattan";
+
+type ViewMode = "normal" | "heatmap";
 
 type PuzzleBoardProps = {
   board: Board;
   onTileClick?: (row: number, col: number) => void;
   solved?: boolean;
+  viewMode?: ViewMode;
 };
 
 function getCellSize(n: number): string {
@@ -18,14 +22,29 @@ function getFontSize(n: number): string {
   return "0.9rem";
 }
 
+function getHeatColor(distance: number, maxDistance: number, isZero: boolean): string {
+  if (isZero) {
+    return "#cbd5e1";
+  }
+  if (maxDistance === 0) {
+    return "#ffffff";
+  }
+
+  const t = distance / maxDistance;
+  const alpha = 0.12 + 0.58 * t;
+  return `rgba(239, 68, 68, ${alpha})`;
+}
+
 export default function PuzzleBoard({
   board,
   onTileClick,
   solved = false,
+  viewMode = "normal",
 }: PuzzleBoardProps) {
   const n = board.length;
   const cellSize = getCellSize(n);
   const fontSize = getFontSize(n);
+  const maxDistance = getMaxManhattan(board);
 
   return (
     <div
@@ -44,12 +63,26 @@ export default function PuzzleBoard({
       {board.map((row, r) =>
         row.map((value, c) => {
           const isZero = value === 0;
+          const distance = getManhattanDistance(value, r, c, n);
+
+          let background = "#ffffff";
+          if (viewMode === "heatmap") {
+            background = getHeatColor(distance, maxDistance, isZero);
+          } else {
+            background = isZero
+              ? solved
+                ? "#bbf7d0"
+                : "#cbd5e1"
+              : solved
+                ? "#86efac"
+                : "#ffffff";
+          }
 
           return (
             <button
               key={`${r}-${c}`}
               onClick={() => onTileClick?.(r, c)}
-              disabled={isZero}
+              disabled={isZero || onTileClick == null}
               style={{
                 width: cellSize,
                 height: cellSize,
@@ -57,14 +90,8 @@ export default function PuzzleBoard({
                 borderRadius: "12px",
                 fontSize,
                 fontWeight: 700,
-                cursor: isZero ? "default" : "pointer",
-                background: isZero
-                  ? solved
-                    ? "#bbf7d0"
-                    : "#cbd5e1"
-                  : solved
-                    ? "#86efac"
-                    : "#ffffff",
+                cursor: onTileClick && !isZero ? "pointer" : "default",
+                background,
                 color: isZero ? "transparent" : "#0f172a",
                 boxShadow: isZero
                   ? "inset 0 2px 6px rgba(0,0,0,0.08)"
@@ -73,6 +100,11 @@ export default function PuzzleBoard({
                 touchAction: "manipulation",
                 userSelect: "none",
               }}
+              title={
+                viewMode === "heatmap" && !isZero
+                  ? `Manhattan distance: ${distance}`
+                  : undefined
+              }
             >
               {isZero ? "" : value}
             </button>
