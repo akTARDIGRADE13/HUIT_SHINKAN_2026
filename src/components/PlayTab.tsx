@@ -7,17 +7,21 @@ type PlayTabProps = {
   selectedCase: PuzzleCase;
 };
 
+type ViewMode = "normal" | "heatmap" | "correctness";
+
 export default function PlayTab({ selectedCase }: PlayTabProps) {
   const initialBoard = useMemo(() => selectedCase.board.map((row) => [...row]), [selectedCase]);
 
   const [board, setBoard] = useState<Board>(initialBoard);
   const [history, setHistory] = useState<Board[]>([]);
   const [moveCount, setMoveCount] = useState(0);
+  const [viewMode, setViewMode] = useState<ViewMode>("normal");
 
   useEffect(() => {
     setBoard(initialBoard);
     setHistory([]);
     setMoveCount(0);
+    setViewMode("normal");
   }, [initialBoard]);
 
   const solved = isSolved(board);
@@ -75,6 +79,7 @@ export default function PlayTab({ selectedCase }: PlayTabProps) {
           gap: "10px",
           flexWrap: "wrap",
           justifyContent: "center",
+          alignItems: "center",
         }}
       >
         <button onClick={handleUndo} disabled={history.length === 0} style={actionButtonStyle}>
@@ -83,6 +88,31 @@ export default function PlayTab({ selectedCase }: PlayTabProps) {
         <button onClick={handleReset} style={actionButtonStyle}>
           リセット
         </button>
+
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            fontWeight: 700,
+            color: "#0f172a",
+          }}
+        >
+          表示モード
+          <select
+            value={viewMode}
+            onChange={(e) => setViewMode(e.target.value as ViewMode)}
+            style={{
+              borderRadius: "10px",
+              border: "1px solid #cbd5e1",
+              padding: "8px 10px",
+              background: "#ffffff",
+            }}
+          >
+            <option value="normal">通常</option>
+            <option value="correctness">正位置ハイライト</option>
+          </select>
+        </label>
       </div>
 
       {solved && (
@@ -99,7 +129,12 @@ export default function PlayTab({ selectedCase }: PlayTabProps) {
         </div>
       )}
 
-      <PuzzleBoard board={board} onTileClick={handleTileClick} solved={solved} />
+      <PuzzleBoard
+        board={board}
+        onTileClick={handleTileClick}
+        solved={solved}
+        viewMode={viewMode}
+      />
     </div>
   );
 }

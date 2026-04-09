@@ -1,7 +1,11 @@
 import type { Board } from "../utils/puzzle";
-import { getManhattanDistance, getMaxManhattan } from "../utils/manhattan";
+import {
+  getManhattanDistance,
+  getMaxManhattan,
+  isCorrectTile,
+} from "../utils/manhattan";
 
-type ViewMode = "normal" | "heatmap";
+type ViewMode = "normal" | "heatmap" | "correctness";
 
 type PuzzleBoardProps = {
   board: Board;
@@ -41,12 +45,40 @@ function getHeatColor(distance: number, maxDistance: number, isZero: boolean): s
   }
 
   const t = distance / maxDistance;
-
-  // 以前よりかなり濃淡差を強める
-  // 小さい距離はかなり薄く、大きい距離はかなり赤くする
   const alpha = 0.06 + 0.84 * Math.pow(t, 0.9);
-
   return `rgba(239, 68, 68, ${alpha})`;
+}
+
+function getCorrectnessStyle(
+  value: number,
+  row: number,
+  col: number,
+  n: number,
+  isZero: boolean,
+) {
+  const correct = isCorrectTile(value, row, col, n);
+
+  if (isZero) {
+    return {
+      background: correct ? "#bbf7d0" : "#cbd5e1",
+      boxShadow: correct
+        ? "0 0 0 2px rgba(34,197,94,0.35), inset 0 2px 6px rgba(0,0,0,0.08)"
+        : "inset 0 2px 6px rgba(0,0,0,0.08)",
+    };
+  }
+
+  if (correct) {
+    return {
+      background: "#dcfce7",
+      boxShadow:
+        "0 0 0 2px rgba(34,197,94,0.45), 0 0 18px rgba(34,197,94,0.45), 0 3px 10px rgba(0,0,0,0.10)",
+    };
+  }
+
+  return {
+    background: "#ffffff",
+    boxShadow: "0 3px 10px rgba(0,0,0,0.10)",
+  };
 }
 
 export default function PuzzleBoard({
@@ -92,8 +124,16 @@ export default function PuzzleBoard({
             const distance = getManhattanDistance(value, r, c, n);
 
             let background = "#ffffff";
+            let boxShadow = isZero
+              ? "inset 0 2px 6px rgba(0,0,0,0.08)"
+              : "0 3px 10px rgba(0,0,0,0.10)";
+
             if (viewMode === "heatmap") {
               background = getHeatColor(distance, maxDistance, isZero);
+            } else if (viewMode === "correctness") {
+              const style = getCorrectnessStyle(value, r, c, n, isZero);
+              background = style.background;
+              boxShadow = style.boxShadow;
             } else {
               background = isZero
                 ? solved
@@ -119,9 +159,7 @@ export default function PuzzleBoard({
                   cursor: onTileClick && !isZero ? "pointer" : "default",
                   background,
                   color: isZero ? "transparent" : "#0f172a",
-                  boxShadow: isZero
-                    ? "inset 0 2px 6px rgba(0,0,0,0.08)"
-                    : "0 3px 10px rgba(0,0,0,0.10)",
+                  boxShadow,
                   transition: "all 0.18s ease",
                   touchAction: "manipulation",
                   userSelect: "none",
@@ -130,7 +168,11 @@ export default function PuzzleBoard({
                 title={
                   viewMode === "heatmap" && !isZero
                     ? `Manhattan distance: ${distance}`
-                    : undefined
+                    : viewMode === "correctness"
+                      ? isCorrectTile(value, r, c, n)
+                        ? "Correct position"
+                        : "Incorrect position"
+                      : undefined
                 }
               >
                 {isZero ? "" : value}

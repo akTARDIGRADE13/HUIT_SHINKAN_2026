@@ -2,12 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { PuzzleCase } from "../data/cases";
 import PuzzleBoard from "./PuzzleBoard";
 import { isSolved, moveZeroByDirection, type Board } from "../utils/puzzle";
+import {
+  getLinearConflict,
+  getManhattanPlusLinearConflict,
+  getTotalManhattan,
+} from "../utils/manhattan";
 
 type SolverTabProps = {
   selectedCase: PuzzleCase;
 };
 
-type ViewMode = "normal" | "heatmap";
+type ViewMode = "normal" | "heatmap" | "correctness";
 
 function normalizeMoves(input: string): string[] {
   return input
@@ -36,6 +41,9 @@ export default function SolverTab({ selectedCase }: SolverTabProps) {
 
   const moves = useMemo(() => normalizeMoves(moveInput), [moveInput]);
   const solved = isSolved(board);
+  const totalManhattan = useMemo(() => getTotalManhattan(board), [board]);
+  const linearConflict = useMemo(() => getLinearConflict(board), [board]);
+  const mdPlusLc = useMemo(() => getManhattanPlusLinearConflict(board), [board]);
 
   useEffect(() => {
     setBaseBoard(initialBoard);
@@ -146,6 +154,20 @@ export default function SolverTab({ selectedCase }: SolverTabProps) {
         <InfoCard label="総手数" value={String(moves.length)} />
         <InfoCard label="現在手数" value={String(currentStep)} />
         <InfoCard label="状態" value={solved ? "完成" : isPlaying ? "再生中" : "停止中"} />
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))",
+          gap: "12px",
+          width: "100%",
+          maxWidth: "720px",
+        }}
+      >
+        <InfoCard label="MD" value={String(totalManhattan)} />
+        <InfoCard label="LC" value={String(linearConflict)} />
+        <InfoCard label="MD + LC" value={String(mdPlusLc)} />
       </div>
 
       <div
@@ -264,6 +286,7 @@ export default function SolverTab({ selectedCase }: SolverTabProps) {
           >
             <option value="normal">通常</option>
             <option value="heatmap">マンハッタン距離</option>
+            <option value="correctness">正位置ハイライト</option>
           </select>
         </label>
       </div>
