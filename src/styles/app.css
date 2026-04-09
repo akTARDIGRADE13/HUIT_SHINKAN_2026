@@ -33,6 +33,13 @@ select {
 .app-container {
     max-width: 960px;
     margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.app-container > * {
+    width: 100%;
 }
 
 .app-header {
@@ -71,6 +78,12 @@ select {
 .case-button.active {
     background: #0f172a;
     color: white;
+}
+
+main {
+    width: 100%;
+    display: flex;
+    justify-content: center;
 }
 
 @media (max-width: 640px) {
