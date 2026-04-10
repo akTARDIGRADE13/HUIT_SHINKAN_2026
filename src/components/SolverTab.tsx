@@ -21,6 +21,47 @@ function normalizeMoves(input: string): string[] {
     .split("");
 }
 
+function cloneBoard(board: Board): Board {
+  return board.map((row) => [...row]);
+}
+
+type ReplayResult = {
+  board: Board;
+  appliedSteps: number;
+  errorMessage: string;
+  history: Board[];
+};
+
+function replayToStep(baseBoard: Board, moves: string[], targetStep: number): ReplayResult {
+  let board = cloneBoard(baseBoard);
+  const history: Board[] = [];
+  const cappedTarget = Math.max(0, Math.min(targetStep, moves.length));
+
+  for (let step = 0; step < cappedTarget; step++) {
+    const dir = moves[step];
+    const next = moveZeroByDirection(board, dir);
+
+    if (next == null) {
+      return {
+        board,
+        appliedSteps: step,
+        errorMessage: `step ${step + 1}: move ${dir} is invalid`,
+        history,
+      };
+    }
+
+    history.push(cloneBoard(board));
+    board = next;
+  }
+
+  return {
+    board,
+    appliedSteps: cappedTarget,
+    errorMessage: "",
+    history,
+  };
+}
+
 export default function SolverTab({ selectedCase }: SolverTabProps) {
   const initialBoard = useMemo(
     () => selectedCase.board.map((row) => [...row]),
@@ -77,25 +118,25 @@ export default function SolverTab({ selectedCase }: SolverTabProps) {
     };
   }, [isPlaying, speedMs, currentStep, moves, board]);
 
+  function applyReplayResult(result: ReplayResult) {
+    setBoard(result.board);
+    setHistory(result.history);
+    setCurrentStep(result.appliedSteps);
+    setErrorMessage(result.errorMessage);
+
+    if (result.errorMessage !== "") {
+      setIsPlaying(false);
+    }
+  }
+
+  function jumpToStep(step: number) {
+    setIsPlaying(false);
+    const result = replayToStep(baseBoard, moves, step);
+    applyReplayResult(result);
+  }
+
   function stepForward() {
-    if (currentStep >= moves.length) {
-      setIsPlaying(false);
-      return;
-    }
-
-    const dir = moves[currentStep];
-    const next = moveZeroByDirection(board, dir);
-
-    if (next == null) {
-      setErrorMessage(`step ${currentStep + 1}: move ${dir} is invalid`);
-      setIsPlaying(false);
-      return;
-    }
-
-    setHistory((prev) => [...prev, board.map((row) => [...row])]);
-    setBoard(next);
-    setCurrentStep((prev) => prev + 1);
-    setErrorMessage("");
+    jumpToStep(currentStep + 1);
   }
 
   function handleReset() {
@@ -111,25 +152,23 @@ export default function SolverTab({ selectedCase }: SolverTabProps) {
   }
 
   function handleUndoOneStep() {
-    if (history.length === 0) return;
-
-    const prevBoard = history[history.length - 1];
-    setHistory((prev) => prev.slice(0, -1));
-    setBoard(prevBoard);
-    setCurrentStep((prev) => Math.max(0, prev - 1));
-    setErrorMessage("");
-    setIsPlaying(false);
+    jumpToStep(currentStep - 1);
   }
 
   function handleStart() {
     if (moves.length === 0) return;
     if (currentStep >= moves.length) return;
+    if (errorMessage !== "") return;
     setErrorMessage("");
     setIsPlaying(true);
   }
 
   function handlePause() {
     setIsPlaying(false);
+  }
+
+  function handleSliderChange(step: number) {
+    jumpToStep(step);
   }
 
   return (
@@ -183,12 +222,13 @@ export default function SolverTab({ selectedCase }: SolverTabProps) {
         <textarea
           value={moveInput}
           onChange={(e) => {
-            setMoveInput(e.target.value);
+            const nextInput = e.target.value;
+            setMoveInput(nextInput);
             setIsPlaying(false);
-            setBoard(baseBoard);
-            setHistory([]);
-            setCurrentStep(0);
-            setErrorMessage("");
+
+            const nextMoves = normalizeMoves(nextInput);
+            const result = replayToStep(baseBoard, nextMoves, 0);
+            applyReplayResult(result);
           }}
           rows={6}
           placeholder="例: UDLR..."
@@ -205,6 +245,45 @@ export default function SolverTab({ selectedCase }: SolverTabProps) {
         <div style={{ color: "#475569", fontSize: "0.9rem" }}>
           空白や改行、UDRL以外の文字は無視されます。
         </div>
+      </div>
+
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "720px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+          padding: "12px 14px",
+          borderRadius: "12px",
+          background: "#f8fafc",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: "12px",
+            flexWrap: "wrap",
+            fontSize: "0.95rem",
+            color: "#334155",
+          }}
+        >
+          <span>ターン指定</span>
+          <span>
+            {currentStep} / {moves.length}
+          </span>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={moves.length}
+          step={1}
+          value={currentStep}
+          onChange={(e) => handleSliderChange(Number(e.target.value))}
+          style={{ width: "100%" }}
+        />
       </div>
 
       <div
